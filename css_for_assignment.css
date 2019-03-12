@@ -1,0 +1,47 @@
+body {
+  color: rgb(0, 60, 90);
+  font-size: 15px;
+  font-family: "Raleway";
+}
+
+h1 {
+  color: #943126;
+  font-size: 20px;
+  font-family: "Srisakdi";
+  font-style: bold;
+}
+
+h2 {
+  color: #943126;
+  font-size: 18px;
+  font-family: "Srisakdi";
+  font-style: bold;
+}
+
+h3 {
+  color: #943126;
+  font-size: 16px;
+  font-family: "Srisakdi";
+  font-style: bold;
+}
+
+h4 {
+  color: #943126;
+  font-size: 16px;
+  font-family: "Srisakdi";
+  font-style: bold;
+}
+
+h5 {
+  color: #943126;
+  font-size: 16px;
+  font-family: "Srisakdi";
+  font-style: bold;
+}
+
+h6 {
+  color: #943126;
+  font-size: 16px;
+  font-family: "Srisakdi";
+  font-style: bold;
+}

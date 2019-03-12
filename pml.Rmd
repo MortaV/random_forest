@@ -1,0 +1,140 @@
+---
+title: "Practical Machine Learning"
+output: 
+  html_document:
+    keep_md: true
+    css: css_for_assignment.css
+    toc: yes
+---
+
+I have added a css file to make an html file more personal :) 
+
+# Summary
+
+<style>
+div.blue { background-color : #FADBD8; border-radius: 15px; padding: 15px 10px 10px 10px;}
+</style>
+<div class = "blue">
+
+This report describes a model for predictining the manner how exercises were done. We were given a test set without any "classe". The model described below predicted all values in the quiz correctly.
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
+
+</div>
+
+# Loading and preprocessing the data
+
+I like to have all needed packages in one place, so first - I will upload all of them. 
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(extrafont)
+library(scales)
+library(lubridate)
+library(DT)
+library(caret)
+library(xgboost)
+library(doSNOW)
+```
+
+Then I read both data sources: 
+
+```{r}
+
+data_folder <- "data"
+
+if (!file.exists(data_folder)){
+    dir.create(data_folder)
+}
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+              "data/training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",
+              "data/testing.csv")
+
+# reading the data
+
+train <- read.csv("data/training.csv", na = c("", "NA"), stringsAsFactors = FALSE)
+test <- read.csv("data/testing.csv", na = c("", "NA"), stringsAsFactors = FALSE)
+
+```
+
+Before preprocessing the training set, I split it to training and testing sets. Even though I had two data frames, I still needed to understand out of sample error so I needed test set for the model. From this moment until the predictions I am working only with training data set and just using the same methods for the test set without even looking at it.
+
+Also, I have defined train_control for my model - I will use Cross Validation with 5 sub-sets. This is needed to understand which parameters are the best for my model.
+
+```{r}
+set.seed(123)
+index <- createDataPartition(train$classe, list=FALSE, p = 0.7)
+training <- train[index,]
+testing <- train[-index,]
+
+train_control <- trainControl(method = "cv",
+                              number = 5)
+```
+
+To unserstand, what needs to be done to preprocess the data, we should check how the data looks like:
+
+```{r}
+
+datatable(head(training, 50), rownames = FALSE, filter="top", options = list(pageLength = 5, scrollX=T))
+
+```
+
+It seems that there are a lot of empty columns. We cannot use them anyway so the best thing is to remove them. First, let's identify how many of empty values there are in each of the columns:
+
+```{r}
+
+perc <- as.data.frame(apply(!apply(training, 2, is.na), 2, sum)/nrow(training))
+names(perc) <- c("Percentage")
+perc$Columns <- rownames(perc)
+
+```
+
+I chose to have columns with more than 95% of full data. This ends up with the columns which are full:
+
+```{r}
+col_leave <- perc %>%
+    filter(Percentage > 0.95) %>%
+    select(Columns)
+
+index_col <- colnames(training) %in% col_leave$Columns
+
+train_wf <- training[, index_col]
+test_wf <- testing[, index_col]
+final_test <- test[, index_col]
+```
+
+# Models
+
+## Random Forest with all variables
+
+I didn't include the code for it, but first I tried a Random Forest with all variables which left after removing the empty ones. This model was clearly overfitting (it had 100% accuracy), so I chose to remove all "summary" variables and left only their components (or coordinates in this case): everything what ends with "_x", "_y" or "_z".
+
+```{r}
+train_wf <- select(train_wf, contains('_x'), contains('_y'), contains('_z'), classe)
+test_wf <- select(test_wf, contains('_x'), contains('_y'), contains('_z'), classe)
+final_test <- select(final_test, contains('_x'), contains('_y'), contains('_z'))
+```
+
+## Random Forest with selected variables
+
+```{r}
+mod_rf <- train(classe ~ ., 
+                     data = train_wf, 
+                     method = "rf", 
+                     trControl = train_control)
+```
+
+Model Accuracy in the test set is `r mod_rf$results$Accuracy[1]`. Let's check the out of sample error:
+
+```{r}
+predictions <- predict(mod_rf, test_wf)
+confusionMatrix(predictions, factor(test_wf$classe))
+```
+
+As you can see, accuracy in test set is also high, so I stayed with this model. When using it for mu Quiz answers, I got the answers correctly.
+
+```{r}
+predictions_test <- as.data.frame(predict(mod_rf, final_test))
+```
